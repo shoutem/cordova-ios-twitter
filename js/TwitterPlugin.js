@@ -126,6 +126,29 @@ Twitter.prototype.getTWRequest = function(url, params, success, failure, options
     options.params = params;
     cordova.exec(success, failure, "TwitterPlugin", "getTWRequest", [options]);
 };
+/**
+ * Gets Twitter oauth_token and oauth_token_secret by using reverse auth. This information will be 
+ * contained in twitter response string in following format: "oauth_token=...&oauth_token_secret=...".
+ * ShoutEm API method verify_twitter_credentials expects parameter with name session_key to have 
+ * "oauth_token|oauth_token_secret" value.
+ * @param {Function} success callback
+ * @param {String} success.response reverse auth response string
+ * @param {Function} failure callback
+ * @param {String} failure.error reason for failure
+ * @param {Object} options should contain twitterConsumerKey and twitterConsumerSecret keys with appropriate values
+ * @example
+ *     window.plugins.twitter.getReverseAuthToken(
+ *         function (response) { console.log("Reverse auth success: " + JSON.stringify(response)); },
+ *         function (error) { console.log("Reverse auth failure: " + error); },
+ *         {twitterConsumerKey : '123a', twitterConsumerSecret : '6f6f6f'}
+ *     );
+ *
+ * [Twitter Reverse Auth Doc]: https://dev.twitter.com/docs/ios/using-reverse-auth
+ */
+Twitter.prototype.getReverseAuthToken = function(success, failure, options){
+    cordova.exec(success, failure, "TwitterPlugin", "startTWReverseAuth", [options]);
+};
+
 // Plug in to Cordova
 cordova.addConstructor(function() {
 					   

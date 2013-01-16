@@ -4,12 +4,22 @@
 //
 //  Created by Antonelli Brian on 10/13/11.
 //
+#import "TwitterPlugin.h"
+#import <Cordova/JSONKit.h>
+#import <Cordova/CDVAvailability.h>
 
-    #import "TwitterPlugin.h"
-    #import <Cordova/JSONKit.h>
-	#import <Cordova/CDVAvailability.h>
+#import "OAuthConsumer.h"
 
 #define TWITTER_URL @"http://api.twitter.com/1/"
+
+#define TW_API_ROOT                  @"https://api.twitter.com"
+#define TW_X_AUTH_MODE_KEY           @"x_auth_mode"
+#define TW_X_AUTH_MODE_REVERSE_AUTH  @"reverse_auth"
+#define TW_X_AUTH_MODE_CLIENT_AUTH   @"client_auth"
+#define TW_X_AUTH_REVERSE_PARMS      @"x_reverse_auth_parameters"
+#define TW_X_AUTH_REVERSE_TARGET     @"x_reverse_auth_target"
+#define TW_OAUTH_URL_REQUEST_TOKEN   TW_API_ROOT "/oauth/request_token"
+#define TW_OAUTH_URL_AUTH_TOKEN      TW_API_ROOT "/oauth/access_token"
 
 @implementation TwitterPlugin
 
@@ -290,7 +300,114 @@
     [accountStore release];
 }
 
+#pragma mark -
+#pragma mark Reverse auth
+- (void)startTWReverseAuth:(NSMutableArray *)arguments withDict:(NSMutableDictionary *)options
+{
+    NSString *callbackId = [arguments objectAtIndex:0];
+    NSString *twitterKey = [options valueForKey:@"twitterConsumerKey"];
+    NSString *twitterSecret = [options valueForKey:@"twitterConsumerSecret"];
+    
+    self.twitterConsumerKey = twitterKey;
+    self.twitterConsumerSecret = twitterSecret;
+   	self.accountStore = [[ACAccountStore alloc] init];
+    ACAccountType *accountType = [self.accountStore accountTypeWithAccountTypeIdentifier:ACAccountTypeIdentifierTwitter];
+	
+    [self.accountStore requestAccessToAccountsWithType:accountType withCompletionHandler:^(BOOL granted, NSError *error)
+     {
+         if (!granted)
+         {
+             NSString *jsResponse = [[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                                       messageAsString:@"Access to Twitter accounts denied by user"]
+                                     toErrorCallbackString:callbackId];
+             [self performCallbackOnMainThreadforJS:jsResponse];
+         }
+         else
+         {
+             self.accountsArray = [self.accountStore accountsWithAccountType:accountType];
+             if ([self.accountsArray count] == 0)
+             {
+                 NSString *jsResponse = [[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                                           messageAsString:@"No Twitter accounts available"]
+                                         toErrorCallbackString:callbackId];
+                 [self performCallbackOnMainThreadforJS:jsResponse];
+             }
+             else if ([self.accountsArray count] == 1)
+             {
+                 [self reverseAuthWithAccount:[self.accountsArray lastObject] callbackId:callbackId];
+             }
+             else
+             {
+                 self.callbackId = callbackId;
+                 UIActionSheet *sheet = [[UIActionSheet alloc]
+                                         initWithTitle:@"Choose account:"
+                                         delegate:self
+                                         cancelButtonTitle:nil
+                                         destructiveButtonTitle:nil
+                                         otherButtonTitles:nil];
+                 
+                 for (ACAccount *currentAccount in self.accountsArray)
+                     [sheet addButtonWithTitle:currentAccount.username];
+                 
+                 [sheet addButtonWithTitle:@"Cancel"];
+                 [sheet setDestructiveButtonIndex:[self.accountsArray count]];
+                 [sheet performSelectorOnMainThread:@selector(showInView:) withObject:[[super webView] superview] waitUntilDone:NO];
+             }
+             
+         }
+     }];
+}
 
+- (void)reverseAuthWithAccount:(ACAccount *)twitterAccount callbackId:(NSString *)callbackId
+{
+    // Step 1
+    OAConsumer *consumer = [[OAConsumer alloc] initWithKey:self.twitterConsumerKey
+                                                    secret:self.twitterConsumerSecret];
+    
+    NSURL *url = [NSURL URLWithString:TW_OAUTH_URL_REQUEST_TOKEN];
+    
+    OAMutableURLRequest *request = [[OAMutableURLRequest alloc] initWithURL: url
+                                                                   consumer: consumer
+                                                                      token: nil
+                                                                      realm: nil
+                                                          signatureProvider: nil];
+    
+    OARequestParameter *params = [[OARequestParameter alloc] initWithName:TW_X_AUTH_MODE_KEY value:TW_X_AUTH_MODE_REVERSE_AUTH];
+    [request setParameters:[NSArray arrayWithObject:params]];
+    [request setHTTPMethod:@"GET"];
+    
+    
+    [request prepare];
+    
+    NSData *data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:nil];
+    NSString *responseStep1 = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    
+    // Step 2
+    NSURL *url2 = [NSURL URLWithString:TW_OAUTH_URL_AUTH_TOKEN];
+    
+    NSMutableDictionary *paramsStep2 = [[NSMutableDictionary alloc] init];
+    [paramsStep2 setValue:self.twitterConsumerKey forKey:TW_X_AUTH_REVERSE_TARGET];
+    [paramsStep2 setValue:responseStep1 forKey:TW_X_AUTH_REVERSE_PARMS];
+    
+    TWRequest *twitterRequest = [[TWRequest alloc] initWithURL:url2 parameters:paramsStep2 requestMethod:TWRequestMethodPOST];
+    [twitterRequest setAccount:twitterAccount];
+    
+    [twitterRequest performRequestWithHandler:^(NSData *responseData, NSHTTPURLResponse *urlResponse, NSError *error) {
+        NSString *responseString = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
+        
+        [super writeJavascript:[[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:responseString] toSuccessCallbackString:callbackId]];
+    }];
+    
+    self.callbackId = nil;
+}
+
+#pragma mark -
+#pragma mark UIActionSheetDelegate
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex
+{
+    if ([self.accountsArray count] > buttonIndex)
+        [self reverseAuthWithAccount:[self.accountsArray objectAtIndex:buttonIndex] callbackId:self.callbackId];
+}
 
 
 
