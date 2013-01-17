@@ -395,7 +395,7 @@
     [twitterRequest performRequestWithHandler:^(NSData *responseData, NSHTTPURLResponse *urlResponse, NSError *error) {
         NSString *responseString = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
         
-        [super writeJavascript:[[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:responseString] toSuccessCallbackString:callbackId]];
+        [self performCallbackOnMainThreadforJS:[[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:responseString] toSuccessCallbackString:callbackId]];
     }];
     
     self.callbackId = nil;
