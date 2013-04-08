@@ -395,6 +395,16 @@
     [twitterRequest performRequestWithHandler:^(NSData *responseData, NSHTTPURLResponse *urlResponse, NSError *error) {
         NSString *responseString = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
         
+        if (urlResponse.statusCode != 200)
+        {
+            if ([self.accountStore respondsToSelector:@selector(renewCredentialsForAccount:completion:)])
+                [self.accountStore renewCredentialsForAccount:twitterAccount completion:^(ACAccountCredentialRenewResult renewResult, NSError *error) {
+                    if (renewResult == ACAccountCredentialRenewResultRenewed)
+                        [self reverseAuthWithAccount:twitterAccount callbackId:callbackId];
+                }];
+            else
+                NSLog(@"iOS 5.x twitter account invalid");
+        }
         [self performCallbackOnMainThreadforJS:[[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:responseString] toSuccessCallbackString:callbackId]];
     }];
     
