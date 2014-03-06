@@ -23,31 +23,30 @@
 
 @implementation TwitterPlugin
 
-- (void) isTwitterAvailable:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options{
-    NSString *callbackId = [arguments objectAtIndex:0];
+- (void)isTwitterAvailable:(CDVInvokedUrlCommand*)command {
     TWTweetComposeViewController *tweetViewController = [[TWTweetComposeViewController alloc] init];
     BOOL twitterSDKAvailable = tweetViewController != nil;
 
     // http://brianistech.wordpress.com/2011/10/13/ios-5-twitter-integration/
-    if(tweetViewController != nil){
+    if(tweetViewController != nil) {
         [tweetViewController release];
     }
-	
-	
     
-    [super writeJavascript:[[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:twitterSDKAvailable ? 1 : 0] toSuccessCallbackString:callbackId]];
+    CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:twitterSDKAvailable ? 1 : 0];
+    [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
 }
 
-- (void) isTwitterSetup:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options{
-    NSString *callbackId = [arguments objectAtIndex:0];
+- (void)isTwitterSetup:(CDVInvokedUrlCommand*)command {
     BOOL canTweet = [TWTweetComposeViewController canSendTweet];
 
-    [super writeJavascript:[[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:canTweet ? 1 : 0] toSuccessCallbackString:callbackId]];
+    CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:canTweet ? 1 : 0];
+    [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
 }
 
-- (void) composeTweet:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options{
+- (void)composeTweet:(CDVInvokedUrlCommand*)command {
+    NSDictionary *options = (NSDictionary *)[command argumentAtIndex:0];
     // arguments: callback, tweet text, url attachment, image attachment
-    NSString *callbackId = [arguments objectAtIndex:0];
+    NSString *callbackId = command.callbackId;
     NSString *tweetText = [options objectForKey:@"text"];
     NSString *urlAttach = [options objectForKey:@"urlAttach"];
     NSString *imageAttach = [options objectForKey:@"imageAttach"];
@@ -57,44 +56,39 @@
     BOOL ok = YES;
     NSString *errorMessage;
     
-    if(tweetText != nil){
+    if(tweetText != nil) {
         ok = [tweetViewController setInitialText:tweetText];
-        if(!ok){
+        if(!ok) {
             errorMessage = @"Tweet is too long";
         }
     }
     
-
-    
-    if(imageAttach != nil){
+    if(imageAttach != nil) {
         // Note that the image is loaded syncronously
         if([imageAttach hasPrefix:@"http://"]){
             UIImage *img = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:imageAttach]]];
             ok = [tweetViewController addImage:img];
             [img release];
         }
-        else{
+        else {
             ok = [tweetViewController addImage:[UIImage imageNamed:imageAttach]];
         }
-        if(!ok){
+        if(!ok) {
             errorMessage = @"Image could not be added";
         }
     }
 	
-	if(urlAttach != nil){
+	if(urlAttach != nil) {
         ok = [tweetViewController addURL:[NSURL URLWithString:urlAttach]];
         if(!ok){
             errorMessage = @"URL too long";
         }
     }
-
     
-    
-    if(!ok){        
-        [super writeJavascript:[[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR 
-                                               messageAsString:errorMessage] toErrorCallbackString:callbackId]];
-    }
-    else{
+    if(!ok) {
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                                                 messageAsString:errorMessage] callbackId:callbackId];
+    } else {
         
 #if TARGET_IPHONE_SIMULATOR
         NSString *simWarning = @"Test TwitterPlugin on Real Hardware. Tested on Cordova 2.0.0";
@@ -105,13 +99,13 @@
         
         [tweetViewController setCompletionHandler:^(TWTweetComposeViewControllerResult result) {
             switch (result) {
-                case TWTweetComposeViewControllerResultDone:
-                    [super writeJavascript:[[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] toSuccessCallbackString:callbackId]];
+                case TWTweetComposeViewControllerResultDone:;
+                     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:callbackId];
                     break;
                 case TWTweetComposeViewControllerResultCancelled:
                 default:
-                    [super writeJavascript:[[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR 
-                                                           messageAsString:@"Cancelled"] toErrorCallbackString:callbackId]];
+                    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                                                             messageAsString:@"Cancelled"] callbackId:callbackId];
                     break;
             }
             
@@ -125,8 +119,8 @@
     [tweetViewController release];
 }
 
-- (void) getPublicTimeline:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options{
-    NSString *callbackId = [arguments objectAtIndex:0];
+- (void)getPublicTimeline:(CDVInvokedUrlCommand*)command {
+    NSString *callbackId = command.callbackId;
     NSString *url = [NSString stringWithFormat:@"%@statuses/public_timeline.json", TWITTER_URL];
     
     TWRequest *postRequest = [[TWRequest alloc] initWithURL:[NSURL URLWithString:url] parameters:nil requestMethod:TWRequestMethodGET];
@@ -151,8 +145,8 @@
     [postRequest release];
 }
 
-- (void) getTwitterUsername:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options{
-    NSString *callbackId = [arguments objectAtIndex:0];
+- (void)getTwitterUsername:(CDVInvokedUrlCommand*)command {
+    NSString *callbackId = command.callbackId;
     ACAccountStore *accountStore = [[ACAccountStore alloc] init];
     ACAccountType *accountType = [accountStore accountTypeWithAccountTypeIdentifier:ACAccountTypeIdentifierTwitter];
     
@@ -170,11 +164,10 @@
     }];
     
     [accountStore release];
-
 }
 
-- (void) getMentions:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options{
-    NSString *callbackId = [arguments objectAtIndex:0];
+- (void)getMentions:(CDVInvokedUrlCommand*)command {
+    NSString *callbackId = command.callbackId;
     NSString *url = [NSString stringWithFormat:@"%@statuses/mentions.json", TWITTER_URL];
     
     ACAccountStore *accountStore = [[ACAccountStore alloc] init];
@@ -225,8 +218,9 @@
 
 
 
-- (void) getTWRequest:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options{
-    NSString *callbackId = [arguments objectAtIndex:0];
+- (void)getTWRequest:(CDVInvokedUrlCommand*)command {
+    NSDictionary *options = (NSDictionary *)[command argumentAtIndex:0];
+    NSString *callbackId = command.callbackId;
     NSString *urlSlug = [options objectForKey:@"url"];
     NSString *url = [NSString stringWithFormat:@"%@%@", TWITTER_URL, urlSlug];
     
@@ -300,11 +294,10 @@
     [accountStore release];
 }
 
-#pragma mark -
-#pragma mark Reverse auth
-- (void)startTWReverseAuth:(NSMutableArray *)arguments withDict:(NSMutableDictionary *)options
-{
-    NSString *callbackId = [arguments objectAtIndex:0];
+#pragma mark - Reverse auth
+- (void)startTWReverseAuth:(CDVInvokedUrlCommand*)command {
+    NSDictionary *options = (NSDictionary *)[command argumentAtIndex:0];
+    NSString *callbackId = command.callbackId;
     NSString *twitterKey = [options valueForKey:@"twitterConsumerKey"];
     NSString *twitterSecret = [options valueForKey:@"twitterConsumerSecret"];
     
@@ -353,7 +346,6 @@
                  [sheet setDestructiveButtonIndex:[self.accountsArray count]];
                  [sheet performSelectorOnMainThread:@selector(showInView:) withObject:[[super webView] superview] waitUntilDone:NO];
              }
-             
          }
      }];
 }
@@ -419,7 +411,7 @@
         [self reverseAuthWithAccount:[self.accountsArray objectAtIndex:buttonIndex] callbackId:self.callbackId];
 }
 
-
+#pragma mark - Callback on main thread
 
 // The JS must run on the main thread because you can't make a uikit call (uiwebview) from another thread (what twitter does for calls)
 - (void) performCallbackOnMainThreadforJS:(NSString*)javascript{
