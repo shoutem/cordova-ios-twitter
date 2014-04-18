@@ -135,7 +135,7 @@
 		}
 		else{
             jsResponse = [[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR 
-                                        messageAsString:[NSString stringWithFormat:@"HTTP Error: %i", [urlResponse statusCode]]] 
+                                        messageAsString:[NSString stringWithFormat:@"HTTP Error: %li", (long)[urlResponse statusCode]]]
                             	  toErrorCallbackString:callbackId];
 		}
         
@@ -190,7 +190,7 @@
                     }
                     else{
                         jsResponse = [[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR 
-                                                     messageAsString:[NSString stringWithFormat:@"HTTP Error: %i", [urlResponse statusCode]]] 
+                                                     messageAsString:[NSString stringWithFormat:@"HTTP Error: %li", (long)[urlResponse statusCode]]]
                                       toErrorCallbackString:callbackId];
                     }
                     
@@ -268,7 +268,7 @@
                     }
                     else{
                         jsResponse = [[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR 
-                                                        messageAsString:[NSString stringWithFormat:@"HTTP Error: %i", [urlResponse statusCode]]] 
+                                                        messageAsString:[NSString stringWithFormat:@"HTTP Error: %li", (long)[urlResponse statusCode]]]
                                       toErrorCallbackString:callbackId];
                     }
                     
