@@ -364,16 +364,14 @@
                                                                       realm: nil
                                                           signatureProvider: nil];
     
-    OARequestParameter *params = [[OARequestParameter alloc] initWithName:TW_X_AUTH_MODE_KEY value:TW_X_AUTH_MODE_REVERSE_AUTH];
-    [request setParameters:[NSArray arrayWithObject:params]];
-    [request setHTTPMethod:@"GET"];
-    
+    [request setHTTPBodyWithString:[NSString stringWithFormat:@"%@=%@", TW_X_AUTH_MODE_KEY, TW_X_AUTH_MODE_REVERSE_AUTH]];
+    [request setHTTPMethod:@"POST"];
     
     [request prepare];
     
     NSData *data = [NSURLConnection sendSynchronousRequest:request returningResponse:nil error:nil];
     NSString *responseStep1 = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    
+
     // Step 2
     NSURL *url2 = [NSURL URLWithString:TW_OAUTH_URL_AUTH_TOKEN];
     
@@ -381,7 +379,7 @@
     [paramsStep2 setValue:self.twitterConsumerKey forKey:TW_X_AUTH_REVERSE_TARGET];
     [paramsStep2 setValue:responseStep1 forKey:TW_X_AUTH_REVERSE_PARMS];
     
-    TWRequest *twitterRequest = [[TWRequest alloc] initWithURL:url2 parameters:paramsStep2 requestMethod:TWRequestMethodPOST];
+    SLRequest *twitterRequest = [SLRequest requestForServiceType:SLServiceTypeTwitter requestMethod:SLRequestMethodPOST URL:url2 parameters:paramsStep2];
     [twitterRequest setAccount:twitterAccount];
     
     [twitterRequest performRequestWithHandler:^(NSData *responseData, NSHTTPURLResponse *urlResponse, NSError *error) {
